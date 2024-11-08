@@ -133,13 +133,9 @@ def enviar_email(numero_nota, empresa_pagadora, valor_total, items, arquivos_ane
 
     # Salvar o Excel em um buffer de memória
     excel_buffer = BytesIO()
-    df.to_excel(excel_buffer, index=False)
-    excel_buffer.seek(0)  # Retorna o ponteiro para o início do arquivo
-
-    #excel_buffer = BytesIO()
-    #with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-        #df.to_excel(writer, index=False)
-    #excel_buffer.seek(0)
+    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False)
+    excel_buffer.seek(0)
 
     # Nome do arquivo com o formato desejado
     nome_arquivo = f"notafiscal - {numero_nota}.xlsx"
