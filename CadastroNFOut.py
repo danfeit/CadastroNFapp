@@ -6,6 +6,7 @@ import platform
 
 if platform.system() == "Windows":
     import win32com.client
+    import pythoncom
 else:
     print("win32com.client is not available on non-Windows platforms.")
 # import win32com.client as win32
