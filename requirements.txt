@@ -6,4 +6,4 @@ openpyxl
 # win32com.client
 # pythoncom
 # tempfile
-smtplib
+# smtplib
