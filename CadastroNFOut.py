@@ -1,18 +1,18 @@
 import streamlit as st
-import os
 import pandas as pd
-from io import BytesIO
-import platform
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+import smtplib
+#from io import BytesIO
 
-if platform.system() == "Windows":
-    import win32com.client
-    import pythoncom
-else:
-    print("win32com.client is not available on non-Windows platforms.")
-# import win32com.client as win32
-# import pythoncom  # Biblioteca para controle do ambiente COM
-from tempfile import NamedTemporaryFile  # Para criar arquivos temporários
-
+# Configurações de email
+EMAIL = 'daniel.feitosa.mis@gmail.com'
+SENHA = 'eefr tlum huof spwh'
+SMTP_SERVER = 'smtp.gmail.com'
+SMTP_PORT = 587
+DESTINATARIO = 'daniel.feitosa.mis@gmail.com'
 
 # Tela de login
 def login():
@@ -58,14 +58,15 @@ def cadastro_nf():
     st.title("Cadastro de Nota Fiscal")
     st.write(f"Olá, {st.session_state['usuario']}")
 
-    # Campos principais
-    numero_nota = st.text_input("Número da Nota", key="numero_nota")
+    numero_nota = st.text_input("Número da Nota")
     empresa_pagadora = st.selectbox("Empresa Pagadora", ["Banco xpto", "Banco ABC", "Financeira X"])
-    quantidade_itens = st.number_input("Quantidade de Itens da Nota", min_value=1, step=1, key="quantidade_itens")
+    quantidade_itens = st.number_input("Quantidade de Itens da Nota", min_value=1, step=1)
 
     # Configurando cabeçalhos para a tabela de itens
     st.subheader("Detalhes dos Itens")
-    colunas = st.columns([5, 5, 6, 3, 6, 1])
+
+    # Exibe o cabeçalho da tabela apenas uma vez
+    colunas = st.columns([4, 4, 5, 3, 5, 1])
     with colunas[0]: st.write("Código da Causa")
     with colunas[1]: st.write("Número do Processo")
     with colunas[2]: st.write("Tipo de Despesa")
@@ -78,7 +79,7 @@ def cadastro_nf():
 
     # Exibindo os itens em uma tabela dinâmica
     for i in range(int(quantidade_itens)):
-        colunas = st.columns([5, 5, 6, 3, 6, 1])
+        colunas = st.columns([4, 4, 5, 3, 5, 1])
         with colunas[0]:
             codigo_causa = st.text_input("", key=f'causa_{i}')
         with colunas[1]:
@@ -119,7 +120,7 @@ def cadastro_nf():
         else:
             enviar_email(numero_nota, empresa_pagadora, valor_total, items, arquivos_anexos, st.session_state['usuario'], st.session_state['user_email'])
             st.success("Email enviado com sucesso!")
-            #limpar_campos()
+            limpar_campos()
 
 # Função para enviar e-mail com os dados e gerar o arquivo .xlsx
 def enviar_email(numero_nota, empresa_pagadora, valor_total, items, arquivos_anexos, usuario, user_email):
@@ -130,60 +131,62 @@ def enviar_email(numero_nota, empresa_pagadora, valor_total, items, arquivos_ane
     df['Valor Total da Nota'] = valor_total
     df['Usuário'] = usuario  # Adiciona o usuário como uma coluna no Excel
 
-    # Salvar o Excel em um arquivo temporário
-    nome_arquivo = f"{usuario}_notafiscal_{numero_nota}.xlsx"
-    caminho_arquivo = os.path.join(os.getcwd(), nome_arquivo)
-    df.to_excel(caminho_arquivo, index=False)
+    # Salvar o Excel em um buffer de memória
+    excel_buffer = BytesIO()
+    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False)
+    excel_buffer.seek(0)
 
-    # Inicializando o COM e o Outlook
-    pythoncom.CoInitialize()  # Inicializa o COM
-    outlook = win32.Dispatch("Outlook.Application")
-    email = outlook.CreateItem(0)
-    email.To = "daniel.feitosa.mis@gmail.com"
-    email.CC = user_email
-    email.Subject = f"Nota Fiscal - {numero_nota}"
-    email.Body = f"""
+    # Nome do arquivo com o formato desejado
+    nome_arquivo = f"notafiscal - {numero_nota}.xlsx"
+
+    # Configuração do e-mail
+    msg = MIMEMultipart()
+    msg['From'] = EMAIL
+    msg['To'] = DESTINATARIO
+    msg['Cc'] = user_email  # E-mail do usuário será adicionado como cópia
+    msg['Subject'] = f"Nota Fiscal - {numero_nota}"
+    
+    body = f"""
     Número da Nota: {numero_nota}
     Empresa Pagadora: {empresa_pagadora}
     Valor Total: {valor_total}
     Usuário: {usuario}
     """
-
-    # Anexando o arquivo .xlsx pelo caminho temporário
-    email.Attachments.Add(caminho_arquivo)
-
-    # Anexar outros arquivos, se houver
-    temp_files = []  # Lista para armazenar os arquivos temporários
+    msg.attach(MIMEText(body, 'plain'))
+    
+    # Anexar o arquivo .xlsx
+    part = MIMEBase('application', 'octet-stream')
+    part.set_payload(excel_buffer.read())
+    encoders.encode_base64(part)
+    part.add_header('Content-Disposition', f'attachment; filename="{nome_arquivo}"')
+    msg.attach(part)
+    
+    # Anexar os arquivos selecionados, se houver
     for arquivo in arquivos_anexos:
-        # Usar o nome original do arquivo para salvar o temporário
-        arquivo_nome = arquivo.name  # Nome original do arquivo
-        temp_file_path = os.path.join(os.getcwd(), arquivo_nome)
-
-        # Salvar o conteúdo do arquivo UploadedFile no caminho temporário
-        with open(temp_file_path, "wb") as temp_file:
-            temp_file.write(arquivo.getvalue())
-
-        # Adicionar o caminho à lista de arquivos temporários e anexar ao e-mail
-        temp_files.append(temp_file_path)
-        email.Attachments.Add(temp_file_path)
+        part_anexo = MIMEBase('application', 'octet-stream')
+        part_anexo.set_payload(arquivo.read())
+        encoders.encode_base64(part_anexo)
+        part_anexo.add_header('Content-Disposition', f'attachment; filename="{arquivo.name}"')
+        msg.attach(part_anexo)
 
     # Enviar o e-mail
-    email.Send()
-    pythoncom.CoUninitialize()  # Finaliza o COM
+    try:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(EMAIL, SENHA)
+            server.sendmail(EMAIL, [DESTINATARIO, user_email], msg.as_string())
+    except Exception as e:
+        st.error(f"Erro ao enviar e-mail: {e}")
 
-    # Remover o arquivo temporário do Excel e anexos após o envio
-    os.remove(caminho_arquivo)
-    for temp_file_path in temp_files:
-        os.remove(temp_file_path)
-
-
-# Função para limpar apenas os campos específicos do formulário
-#def limpar_campos():
-    #st.session_state["numero_nota"] = ""
-    #st.session_state["quantidade_itens"] = 1
+# Função para limpar os campos do formulário
+def limpar_campos():
+    #st.session_state.clear() ----anterior bkp
+    st.session_state["numero_nota"] = ""
+    st.session_state["quantidade_itens"] = 1
     #for key in list(st.session_state.keys()):
-        #if key.startswith("causa_") or key.startswith("processo_") or key.startswith("tipo_") or key.startswith("valor_") or key.startswith("observacao_"):
-            #st.session_state[key] = ""
+     #   if key.startswith("causa_") or key.startswith("processo_") or key.stouartswith("tipo_") or key.startswith("valor_") or key.startswith("observacao_"):
+      #      st.session_state[key] = ""
 
 # Verifica se o usuário está logado
 if 'logged_in' not in st.session_state:
