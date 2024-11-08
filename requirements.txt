@@ -2,8 +2,6 @@ streamlit
 PyPDF2
 pdfplumber
 pandas
-io
-BytesIO
 win32com.client
 pythoncom
 tempfile
