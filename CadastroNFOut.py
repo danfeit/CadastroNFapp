@@ -10,7 +10,7 @@ if platform.system() == "Windows":
 else:
     print("win32com.client is not available on non-Windows platforms.")
 # import win32com.client as win32
-import pythoncom  # Biblioteca para controle do ambiente COM
+# import pythoncom  # Biblioteca para controle do ambiente COM
 from tempfile import NamedTemporaryFile  # Para criar arquivos temporários
 
 
