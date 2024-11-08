@@ -2,7 +2,13 @@ import streamlit as st
 import os
 import pandas as pd
 from io import BytesIO
-import win32com.client as win32
+import platform
+
+if platform.system() == "Windows":
+    import win32com.client
+else:
+    print("win32com.client is not available on non-Windows platforms.")
+# import win32com.client as win32
 import pythoncom  # Biblioteca para controle do ambiente COM
 from tempfile import NamedTemporaryFile  # Para criar arquivos temporários
 
