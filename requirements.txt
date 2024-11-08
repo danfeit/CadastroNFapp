@@ -3,5 +3,5 @@ PyPDF2
 pdfplumber
 pandas
 # win32com.client
-pythoncom
+# pythoncom
 tempfile
