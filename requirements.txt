@@ -4,4 +4,4 @@ pdfplumber
 pandas
 # win32com.client
 # pythoncom
-tempfile
+# tempfile
