@@ -1,0 +1,10 @@
+streamlit
+PyPDF2
+pdfplumber
+pandas
+os
+io
+BytesIO
+win32com.client
+pythoncom
+tempfile
